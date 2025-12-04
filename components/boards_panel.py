@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from nicegui import ui
 
@@ -9,44 +9,65 @@ if TYPE_CHECKING:
 
 
 class BoardsPanel:
-    def __init__(self, state: "AppState"):
+    def __init__(self, state: "AppState", splitter: Any = None):
         self.state = state
-        self.container: ui.row | None = None
+        self.splitter = splitter
+        self.left_container: ui.column | None = None
+        self.right_container: ui.column | None = None
 
     def build(self) -> None:
-        self.container = ui.row().classes("w-full h-full gap-4 p-4")
+        if self.splitter:
+            # Use splitter's before/after for left/right boards
+            with self.splitter.before:
+                self.left_container = ui.column().classes("w-full h-full p-0 overflow-hidden")
+            with self.splitter.after:
+                self.right_container = ui.column().classes("w-full h-full p-0 overflow-hidden")
+        else:
+            # Fallback: side by side
+            with ui.row().classes("w-full h-full"):
+                self.left_container = ui.column().classes("w-1/2 h-full")
+                self.right_container = ui.column().classes("w-1/2 h-full")
+
         self._rebuild()
         self.state.subscribe_selection_change(self._rebuild)
 
     def _rebuild(self) -> None:
-        if self.container is None:
+        if self.left_container is None or self.right_container is None:
             return
 
-        self.container.clear()
+        self.left_container.clear()
+        self.right_container.clear()
         node = self.state.get_selected_node()
 
-        with self.container:
-            if not node:
-                ui.label("Select a node to view boards").classes(
-                    "text-gray-500 italic w-full text-center"
+        # Progress Board (left)
+        with self.left_container:
+            with ui.column().classes("w-full h-full"):
+                ui.label("Progress Board").classes(
+                    "text-sm font-bold px-3 py-1 text-blue-600 bg-blue-50 border-b shrink-0"
                 )
-                return
+                if not node:
+                    ui.label("Select a node").classes("text-gray-400 italic p-4")
+                else:
+                    with ui.scroll_area().classes("w-full flex-grow"):
+                        ui.textarea(
+                            value=node.progress_board,
+                            on_change=lambda e: self._update_board("progress_board", e.value),
+                        ).classes("w-full min-h-full").props("outlined autogrow borderless")
 
-            # Progress Board (50% width)
-            with ui.column().classes("w-1/2"):
-                ui.label("Progress Board").classes("font-bold text-blue-600 mb-2")
-                ui.textarea(
-                    value=node.progress_board,
-                    on_change=lambda e: self._update_board("progress_board", e.value),
-                ).classes("w-full").props("outlined rows=12")
-
-            # Content Board (50% width)
-            with ui.column().classes("w-1/2"):
-                ui.label("Content Board").classes("font-bold text-green-600 mb-2")
-                ui.textarea(
-                    value=node.content_board,
-                    on_change=lambda e: self._update_board("content_board", e.value),
-                ).classes("w-full").props("outlined rows=12")
+        # Content Board (right)
+        with self.right_container:
+            with ui.column().classes("w-full h-full"):
+                ui.label("Content Board").classes(
+                    "text-sm font-bold px-3 py-1 text-green-600 bg-green-50 border-b shrink-0"
+                )
+                if not node:
+                    ui.label("Select a node").classes("text-gray-400 italic p-4")
+                else:
+                    with ui.scroll_area().classes("w-full flex-grow"):
+                        ui.textarea(
+                            value=node.content_board,
+                            on_change=lambda e: self._update_board("content_board", e.value),
+                        ).classes("w-full min-h-full").props("outlined autogrow borderless")
 
     def _update_board(self, field: str, value: str) -> None:
         if self.state.selected_node_id:

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from nicegui import ui
 
-from models import ChildrenType, Status
+from models import Status
 
 if TYPE_CHECKING:
     from state import AppState
@@ -22,24 +22,18 @@ NODE_ICONS: Dict[str, str] = {
     "DAPP_Child": "change_history",
 }
 
-CHILDREN_TYPE_LABELS: Dict[ChildrenType, str] = {
-    ChildrenType.LEAF: "",
-    ChildrenType.RRTD: "[R]",
-    ChildrenType.DAPP: "[D]",
-}
-
 
 def build_tree_nodes(nodes: List[Any], state: "AppState") -> List[Dict[str, Any]]:
     """Convert Pydantic nodes to ui.tree format."""
     result = []
     for node in nodes:
-        children_label = CHILDREN_TYPE_LABELS.get(node.children_type, "")
         tree_node = {
             "id": node.id,
             "label": node.name,
             "icon": NODE_ICONS.get(node.type, "circle"),
             "status_color": STATUS_COLORS.get(node.status, "#000000"),
-            "children_label": children_label,
+            "created_time": node.created_at.strftime("%H:%M"),
+            "updated_time": node.updated_at.strftime("%H:%M"),
             "children": build_tree_nodes(node.children, state) if node.children else [],
         }
         result.append(tree_node)
@@ -53,13 +47,16 @@ class TreeViewComponent:
         self.container: ui.column | None = None
 
     def build(self) -> None:
-        with ui.column().classes("w-full h-full"):
-            ui.button("+ Add Root Goal", on_click=self._on_add_root).classes(
-                "m-2"
-            ).props("flat color=primary")
+        # Everything in one scroll area so button follows tree content
+        with ui.scroll_area().classes("w-full h-full"):
+            with ui.column().classes("w-full gap-0"):
+                self.container = ui.column().classes("w-full gap-0")
+                self._rebuild_tree()
 
-            self.container = ui.column().classes("w-full flex-grow overflow-auto p-2")
-            self._rebuild_tree()
+                # Button right after tree content (like a new node)
+                ui.button("+ Add Root", on_click=self._on_add_root).classes(
+                    "ml-4 mt-1"
+                ).props("flat dense color=primary size=sm")
 
     def _rebuild_tree(self) -> None:
         if self.container is None:
@@ -86,17 +83,17 @@ class TreeViewComponent:
                 .classes("w-full")
             )
 
-            # Custom header slot for status colors and icons
+            # Custom header slot: Icon Name ... HH:MM HH:MM (times on right, fixed width)
             self.tree.add_slot(
                 "default-header",
                 """
-                <div class="row items-center no-wrap">
-                    <q-icon :name="props.node.icon" :style="{ color: props.node.status_color }" class="q-mr-xs" size="sm" />
-                    <span :style="{ color: props.node.status_color }">
+                <div style="display: flex; align-items: center; width: 100%; font-size: 12px; overflow: hidden;">
+                    <q-icon :name="props.node.icon" :style="{ color: props.node.status_color }" size="16px" style="flex-shrink: 0; margin-right: 4px;" />
+                    <span :style="{ color: props.node.status_color }" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {{ props.node.label }}
                     </span>
-                    <span v-if="props.node.children_label" class="q-ml-xs text-caption text-grey">
-                        {{ props.node.children_label }}
+                    <span class="text-grey-5" style="flex-shrink: 0; font-family: monospace; font-size: 10px; margin-left: 4px;">
+                        {{ props.node.created_time }} {{ props.node.updated_time }}
                     </span>
                 </div>
                 """,

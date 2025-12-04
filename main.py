@@ -16,37 +16,52 @@ from state import AppState
 
 def create_app() -> None:
     """Create and configure the Goal Tree application."""
+    # Remove all margin/padding and compact tree nodes
+    ui.add_head_html('''<style>
+        body, .q-page-container, .q-page, .nicegui-content {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        /* Tree node height - VS Code like */
+        .q-tree__node-header {
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
+        }
+    </style>''')
+
     # Initialize storage and state
     storage = JsonStorage("data.json", debounce_ms=500)
     state = AppState(storage)
 
-    # Build UI
-    with ui.row().classes("w-full h-screen"):
+    # VS Code style layout: Sidebar | Main Area (Editors / Bottom Panel)
+    # Outer splitter: Goal Tree (left) | Main Area (right)
+    with ui.splitter(value=15).classes("w-full h-[100dvh]").props("limits=[10,30]") as outer_splitter:
         # Left sidebar - Tree View
-        with ui.column().classes("w-80 h-full bg-gray-50 border-r"):
-            ui.label("Goal Tree").classes("text-xl font-bold p-4 text-blue-700")
-            ui.separator()
-            tree_view = TreeViewComponent(state)
-            tree_view.build()
+        with outer_splitter.before:
+            with ui.column().classes("w-full h-full bg-gray-50 overflow-hidden gap-0"):
+                ui.label("Goal Tree").classes("text-sm font-bold px-2 py-1 text-blue-700 shrink-0")
+                tree_view = TreeViewComponent(state)
+                tree_view.build()
 
-        # Right panel
-        with ui.column().classes("flex-grow h-full overflow-auto"):
-            # Top section - Node Fields
-            with ui.card().classes("w-full"):
-                ui.label("Node Details").classes("text-lg font-bold p-2 text-gray-700")
-                ui.separator()
-                node_fields = NodeFieldsPanel(state, on_tree_refresh=tree_view.refresh)
-                node_fields.build()
+        # Right main area - vertical splitter (Boards on top, Node Details at bottom)
+        with outer_splitter.after:
+            with ui.splitter(horizontal=True, value=85).classes("w-full h-full").props("limits=[60,90]") as main_splitter:
+                # Top: Boards area (horizontal splitter for left/right boards)
+                with main_splitter.before:
+                    with ui.splitter(value=50).classes("w-full h-full") as boards_splitter:
+                        boards = BoardsPanel(state, boards_splitter)
+                        boards.build()
 
-            # Bottom section - Boards
-            with ui.card().classes("w-full flex-grow"):
-                ui.label("Boards").classes("text-lg font-bold p-2 text-gray-700")
-                ui.separator()
-                boards = BoardsPanel(state)
-                boards.build()
+                # Bottom: Node Details panel (compact, console-like)
+                with main_splitter.after:
+                    with ui.column().classes("w-full h-full bg-gray-50 overflow-hidden"):
+                        ui.label("Node Details").classes("text-xs font-bold px-2 py-1 text-gray-600 bg-gray-100")
+                        node_fields = NodeFieldsPanel(state, on_tree_refresh=tree_view.refresh)
+                        node_fields.build()
 
-    # Subscribe tree rebuild to data changes
-    state.subscribe_data_change(tree_view.refresh)
+    # Subscribe tree rebuild to tree structure changes only
+    state.subscribe_tree_change(tree_view.refresh)
 
 
 # Create the application

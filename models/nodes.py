@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 from .enums import ChildrenType, Status
@@ -23,6 +23,20 @@ class BaseNode(BaseModel):
     )
     progress_board: str = ""
     content_board: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_default_timestamps(cls, values: dict) -> dict:
+        """Set default timestamps for backward compatibility with old JSON data."""
+        if isinstance(values, dict):
+            now = datetime.now()
+            if "created_at" not in values or values["created_at"] is None:
+                values["created_at"] = now
+            if "updated_at" not in values or values["updated_at"] is None:
+                values["updated_at"] = now
+        return values
 
 
 class DAPPChildNode(BaseModel):
@@ -38,11 +52,25 @@ class DAPPChildNode(BaseModel):
     )
     progress_board: str = ""
     content_board: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     # DAPP-specific fields
     atp: List[str] = Field(default_factory=lambda: [""])
     signposts: List[str] = Field(default_factory=list)
     triggers: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_default_timestamps(cls, values: dict) -> dict:
+        """Set default timestamps for backward compatibility with old JSON data."""
+        if isinstance(values, dict):
+            now = datetime.now()
+            if "created_at" not in values or values["created_at"] is None:
+                values["created_at"] = now
+            if "updated_at" not in values or values["updated_at"] is None:
+                values["updated_at"] = now
+        return values
 
     @field_validator("atp")
     @classmethod

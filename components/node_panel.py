@@ -19,7 +19,8 @@ class NodeFieldsPanel:
         self.container: ui.column | None = None
 
     def build(self) -> None:
-        self.container = ui.column().classes("w-full p-4")
+        # Compact layout for bottom panel - 2 rows
+        self.container = ui.column().classes("w-full p-2 gap-1 overflow-auto")
         self._rebuild()
         self.state.subscribe_selection_change(self._rebuild)
 
@@ -33,93 +34,90 @@ class NodeFieldsPanel:
         with self.container:
             if not node:
                 ui.label("Select a node to view details").classes(
-                    "text-gray-500 italic"
+                    "text-gray-400 italic"
                 )
                 return
 
-            # Name field
-            ui.input(
-                "Name",
-                value=node.name,
-                on_change=lambda e: self._update_field("name", e.value),
-            ).classes("w-full")
+            # Row 1: Name, Status, Description
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.input(
+                    "Name",
+                    value=node.name,
+                    on_change=lambda e: self._update_field("name", e.value),
+                ).classes("w-48").props("dense")
 
-            # Status dropdown
-            status_options = {s.value: s.value for s in Status}
-            ui.select(
-                status_options,
-                label="Status",
-                value=node.status.value,
-                on_change=lambda e: self._update_field("status", Status(e.value)),
-            ).classes("w-full")
+                status_options = {s.value: s.value for s in Status}
+                ui.select(
+                    status_options,
+                    label="Status",
+                    value=node.status.value,
+                    on_change=lambda e: self._update_field("status", Status(e.value)),
+                ).classes("w-28").props("dense")
 
-            # Description
-            ui.textarea(
-                "Description",
-                value=node.description,
-                on_change=lambda e: self._update_field("description", e.value),
-            ).classes("w-full").props("rows=2")
+                ui.input(
+                    "Description",
+                    value=node.description,
+                    on_change=lambda e: self._update_field("description", e.value),
+                ).classes("flex-grow").props("dense")
 
-            # Completion condition
-            ui.input(
-                "Completion Condition",
-                value=node.completion_condition,
-                on_change=lambda e: self._update_field("completion_condition", e.value),
-            ).classes("w-full")
+            # Row 2: Completion, +Child, ChildType (right aligned)
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.input(
+                    "Completion Condition",
+                    value=node.completion_condition,
+                    on_change=lambda e: self._update_field("completion_condition", e.value),
+                ).classes("w-64").props("dense")
 
-            # Children type display
-            with ui.row().classes("items-center gap-2 mt-2"):
-                ui.label(f"Children Type: {node.children_type.value}").classes(
-                    "text-sm text-gray-600"
+                ui.button("+ Child", on_click=self._on_add_child).props(
+                    "flat dense color=primary size=sm"
                 )
 
-            # Add child button
-            ui.button("+ Add Child", on_click=self._on_add_child).props(
-                "flat color=primary"
-            ).classes("mt-2")
+                ui.space()
+
+                ui.label(f"[{node.children_type.value}]").classes(
+                    "text-xs text-gray-500"
+                )
 
             # DAPP-specific fields
             if isinstance(node, DAPPChildNode):
-                ui.separator().classes("my-4")
-                ui.label("DAPP Fields").classes("font-bold text-purple-600")
+                ui.separator().classes("my-1")
+                with ui.row().classes("w-full items-start gap-4 flex-wrap"):
+                    # ATP (required, min 1)
+                    self._build_dapp_list("ATP", node.atp, "atp", min_items=1)
 
-                # ATP list (minimum 1)
-                self._build_list_field("ATP (required)", node.atp, "atp", min_items=1)
+                    # Signposts (always show)
+                    self._build_dapp_list("Signposts", node.signposts, "signposts", min_items=0)
 
-                # Signposts list
-                self._build_list_field("Signposts", node.signposts, "signposts")
+                    # Triggers (always show)
+                    self._build_dapp_list("Triggers", node.triggers, "triggers", min_items=0)
 
-                # Triggers list
-                self._build_list_field("Triggers", node.triggers, "triggers")
-
-    def _build_list_field(
+    def _build_dapp_list(
         self, label: str, items: List[str], field_name: str, min_items: int = 0
     ) -> None:
-        with ui.column().classes("w-full mt-3"):
-            with ui.row().classes("items-center w-full"):
-                ui.label(label).classes("font-semibold text-sm")
+        with ui.column().classes("gap-1"):
+            with ui.row().classes("items-center gap-1"):
+                ui.label(label).classes("text-xs text-purple-600 font-bold")
                 ui.button(
                     icon="add",
-                    on_click=lambda: self._add_list_item(field_name),
-                ).props("flat dense round size=sm")
+                    on_click=lambda fn=field_name: self._add_list_item(fn),
+                ).props("flat dense round size=xs color=purple")
 
-            for i, item in enumerate(items):
-                with ui.row().classes("w-full items-center gap-1"):
-                    ui.input(
-                        value=item,
-                        on_change=lambda e, idx=i: self._update_list_item(
-                            field_name, idx, e.value
-                        ),
-                    ).classes("flex-grow").props("dense")
+            if not items:
+                ui.label("(empty)").classes("text-xs text-gray-400 italic")
+            else:
+                for i, item in enumerate(items):
+                    with ui.row().classes("items-center gap-1"):
+                        ui.input(
+                            value=item,
+                            on_change=lambda e, fn=field_name, idx=i: self._update_list_item(fn, idx, e.value),
+                        ).classes("w-32").props("dense")
 
-                    # Only show delete if above minimum
-                    if len(items) > min_items:
-                        ui.button(
-                            icon="remove",
-                            on_click=lambda idx=i: self._remove_list_item(
-                                field_name, idx
-                            ),
-                        ).props("flat dense round size=sm color=negative")
+                        # Show delete button if above minimum
+                        if len(items) > min_items:
+                            ui.button(
+                                icon="close",
+                                on_click=lambda fn=field_name, idx=i: self._remove_list_item(fn, idx),
+                            ).props("flat dense round size=xs color=negative")
 
     def _update_field(self, field: str, value: Any) -> None:
         if self.state.selected_node_id:
@@ -132,7 +130,7 @@ class NodeFieldsPanel:
         if node and isinstance(node, DAPPChildNode):
             items: List[str] = getattr(node, field_name)
             items.append("")
-            self.state._notify_data_change()
+            self.state._save_only()
             self._rebuild()
 
     def _update_list_item(self, field_name: str, index: int, value: str) -> None:
@@ -140,14 +138,14 @@ class NodeFieldsPanel:
         if node and isinstance(node, DAPPChildNode):
             items: List[str] = getattr(node, field_name)
             items[index] = value
-            self.state._notify_data_change()
+            self.state._save_only()
 
     def _remove_list_item(self, field_name: str, index: int) -> None:
         node = self.state.get_selected_node()
         if node and isinstance(node, DAPPChildNode):
             items: List[str] = getattr(node, field_name)
             items.pop(index)
-            self.state._notify_data_change()
+            self.state._save_only()
             self._rebuild()
 
     async def _on_add_child(self) -> None:

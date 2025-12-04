@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Callable, List, Optional, Set, Union
 
 from models import AppData, BaseNode, ChildrenType, DAPPChildNode
@@ -15,19 +16,36 @@ class AppState:
         self.selected_node_id: Optional[str] = None
         self.expanded_nodes: Set[str] = set()
 
+        # Expand all nodes on initial load
+        self._expand_all_nodes()
+
         # Callbacks for UI updates
-        self._on_data_change: List[Callable[[], None]] = []
+        self._on_tree_change: List[Callable[[], None]] = []  # For tree structure changes only
         self._on_selection_change: List[Callable[[], None]] = []
 
-    def subscribe_data_change(self, callback: Callable[[], None]) -> None:
-        self._on_data_change.append(callback)
+    def _expand_all_nodes(self) -> None:
+        """Collect all node IDs and add to expanded_nodes."""
+        def collect_ids(nodes: List[NodeType]) -> None:
+            for node in nodes:
+                self.expanded_nodes.add(node.id)
+                collect_ids(node.children)
+        collect_ids(self.data.roots)
+
+    def subscribe_tree_change(self, callback: Callable[[], None]) -> None:
+        """Subscribe to tree structure changes (add/remove nodes)."""
+        self._on_tree_change.append(callback)
 
     def subscribe_selection_change(self, callback: Callable[[], None]) -> None:
         self._on_selection_change.append(callback)
 
-    def _notify_data_change(self) -> None:
-        for cb in self._on_data_change:
+    def _notify_tree_change(self) -> None:
+        """Notify tree structure changed - triggers tree rebuild."""
+        for cb in self._on_tree_change:
             cb()
+        self.storage.save(self.data)
+
+    def _save_only(self) -> None:
+        """Save data without triggering tree rebuild."""
         self.storage.save(self.data)
 
     def _notify_selection_change(self) -> None:
@@ -66,7 +84,8 @@ class AppState:
     def add_root_node(self, name: str = "New Goal") -> BaseNode:
         node = BaseNode(name=name)
         self.data.roots.append(node)
-        self._notify_data_change()
+        self.expanded_nodes.add(node.id)
+        self._notify_tree_change()
         return node
 
     def add_child_to_node(
@@ -88,11 +107,19 @@ class AppState:
 
         parent.children.append(child)
         self.expanded_nodes.add(parent_id)  # Auto-expand parent
-        self._notify_data_change()
+        self.expanded_nodes.add(child.id)
+        self._notify_tree_change()
         return child
 
-    def update_node_field(self, node_id: str, field: str, value: object) -> None:
+    def update_node_field(
+        self, node_id: str, field: str, value: object, refresh_tree: bool = False
+    ) -> None:
         node = self.find_node_by_id(node_id)
         if node and hasattr(node, field):
             setattr(node, field, value)
-            self._notify_data_change()
+            # Update updated_at timestamp
+            node.updated_at = datetime.now()
+            if refresh_tree:
+                self._notify_tree_change()
+            else:
+                self._save_only()
