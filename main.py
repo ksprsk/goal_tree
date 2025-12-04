@@ -38,9 +38,10 @@ def create_app() -> None:
         .q-splitter__panel {
             padding: 0 !important;
         }
-        /* Node Details minimum height */
+        /* Node Details height constraints */
         .node-details-panel {
             min-height: 160px !important;
+            height: 320px !important;
         }
     </style>''')
 
@@ -60,7 +61,7 @@ def create_app() -> None:
 
         # Right main area - vertical splitter (Boards on top, Node Details at bottom)
         with outer_splitter.after:
-            with ui.splitter(horizontal=True, value=78).classes("w-full h-full").props("limits=[55,85]") as main_splitter:
+            with ui.splitter(horizontal=True, value=65).classes("w-full h-full").props("limits=[55,85]") as main_splitter:
                 # Top: Boards area (horizontal splitter for left/right boards)
                 with main_splitter.before:
                     with ui.splitter(value=50).classes("w-full h-full") as boards_splitter:

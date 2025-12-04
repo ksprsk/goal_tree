@@ -98,9 +98,7 @@ class NodeFieldsPanel:
                     on_click=lambda fn=field_name: self._add_list_item(fn),
                 ).props("flat dense round size=xs color=purple")
 
-            if not items:
-                ui.label("(empty)").classes("text-xs text-gray-400 italic")
-            else:
+            if items:
                 for i, item in enumerate(items):
                     with ui.row().classes("w-full items-center gap-1"):
                         ui.input(
