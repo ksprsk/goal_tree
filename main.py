@@ -28,6 +28,20 @@ def create_app() -> None:
             padding-top: 2px !important;
             padding-bottom: 2px !important;
         }
+        /* Remove default padding from Quasar components */
+        .q-scrollarea__content {
+            padding: 0 !important;
+        }
+        .q-tree {
+            padding: 0 !important;
+        }
+        .q-splitter__panel {
+            padding: 0 !important;
+        }
+        /* Node Details minimum height */
+        .node-details-panel {
+            min-height: 160px !important;
+        }
     </style>''')
 
     # Initialize storage and state
@@ -46,7 +60,7 @@ def create_app() -> None:
 
         # Right main area - vertical splitter (Boards on top, Node Details at bottom)
         with outer_splitter.after:
-            with ui.splitter(horizontal=True, value=85).classes("w-full h-full").props("limits=[60,90]") as main_splitter:
+            with ui.splitter(horizontal=True, value=78).classes("w-full h-full").props("limits=[55,85]") as main_splitter:
                 # Top: Boards area (horizontal splitter for left/right boards)
                 with main_splitter.before:
                     with ui.splitter(value=50).classes("w-full h-full") as boards_splitter:
@@ -55,7 +69,7 @@ def create_app() -> None:
 
                 # Bottom: Node Details panel (compact, console-like)
                 with main_splitter.after:
-                    with ui.column().classes("w-full h-full bg-gray-50 overflow-hidden"):
+                    with ui.column().classes("w-full h-full bg-gray-50 overflow-hidden node-details-panel"):
                         ui.label("Node Details").classes("text-xs font-bold px-2 py-1 text-gray-600 bg-gray-100")
                         node_fields = NodeFieldsPanel(state, on_tree_refresh=tree_view.refresh)
                         node_fields.build()
