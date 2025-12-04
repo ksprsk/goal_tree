@@ -13,8 +13,7 @@ STATUS_COLORS: Dict[Status, str] = {
     Status.IN_PROGRESS: "#2196F3",  # blue
     Status.COMPLETED: "#4CAF50",  # green
     Status.ON_HOLD: "#9E9E9E",  # gray
-    Status.CANCELLED: "#BDBDBD",  # light gray
-    Status.FAILED: "#F44336",  # red
+    Status.CANCELLED: "#F44336",  # red
 }
 
 NODE_ICONS: Dict[str, str] = {

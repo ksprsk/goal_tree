@@ -116,7 +116,7 @@ class NodeFieldsPanel:
     def _update_field(self, field: str, value: Any) -> None:
         if self.state.selected_node_id:
             self.state.update_node_field(self.state.selected_node_id, field, value)
-            if field == "name" and self.on_tree_refresh:
+            if field in ("name", "status") and self.on_tree_refresh:
                 self.on_tree_refresh()
 
     def _add_list_item(self, field_name: str) -> None:
