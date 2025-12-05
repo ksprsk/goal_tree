@@ -123,3 +123,35 @@ class AppState:
                 self._notify_tree_change()
             else:
                 self._save_only()
+
+    def delete_node(self, node_id: str) -> bool:
+        """Delete a node and all its children. Returns True if deleted."""
+        # Check if it's a root node
+        for i, node in enumerate(self.data.roots):
+            if node.id == node_id:
+                self.data.roots.pop(i)
+                if self.selected_node_id == node_id:
+                    self.selected_node_id = None
+                    self._notify_selection_change()
+                self._notify_tree_change()
+                return True
+
+        # Search in children
+        def remove_from_parent(nodes: List[NodeType]) -> bool:
+            for parent in nodes:
+                for i, child in enumerate(parent.children):
+                    if child.id == node_id:
+                        parent.children.pop(i)
+                        # If no children left, reset to LEAF
+                        if not parent.children:
+                            parent.children_type = ChildrenType.LEAF
+                        if self.selected_node_id == node_id:
+                            self.selected_node_id = None
+                            self._notify_selection_change()
+                        self._notify_tree_change()
+                        return True
+                if remove_from_parent(parent.children):
+                    return True
+            return False
+
+        return remove_from_parent(self.data.roots)

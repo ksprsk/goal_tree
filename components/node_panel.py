@@ -62,6 +62,10 @@ class NodeFieldsPanel:
                             on_change=lambda e: self._update_field("status", Status(e.value)),
                         ).classes("w-28").props("dense")
 
+                        ui.button(icon="delete", on_click=self._on_delete).props(
+                            "flat dense color=negative size=sm"
+                        )
+
                     # Row 2: Description (1 line default, expandable)
                     ui.textarea(
                         "Description",
@@ -159,3 +163,25 @@ class NodeFieldsPanel:
             new_child = self.state.add_child_to_node(node.id, node.children_type)
             if new_child:
                 self.state.select_node(new_child.id)
+
+    async def _on_delete(self) -> None:
+        node = self.state.get_selected_node()
+        if not node:
+            return
+
+        # Show confirmation dialog
+        with ui.dialog() as dialog, ui.card():
+            ui.label("정말 삭제하시겠습니까?").classes("text-lg")
+            if node.children:
+                ui.label(f"하위 노드 {len(node.children)}개도 함께 삭제됩니다.").classes(
+                    "text-sm text-gray-500"
+                )
+            with ui.row().classes("w-full justify-end gap-2 mt-4"):
+                ui.button("취소", on_click=dialog.close).props("flat")
+                ui.button("삭제", on_click=lambda: dialog.submit(True)).props(
+                    "color=negative"
+                )
+
+        result = await dialog
+        if result:
+            self.state.delete_node(node.id)
